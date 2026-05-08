@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cath-Flow 導管室排程工作台</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10151d; --panel: #17202b; --panel-2: #1d2a36;
+      --line: #344352; --line-soft: rgba(255,255,255,0.08);
+      --text: #f5f7fb; --muted: #9aa8b6;
+      --blue: #4db3ff; --green: #4fd1a1; --amber: #ffd166;
+      --red: #ff6b6b; --violet: #b79cff; --cyan: #5ed3d6;
+      --shadow: 0 18px 40px rgba(0,0,0,0.28); --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+      font-family:"Segoe UI","Noto Sans TC",Roboto,Arial,sans-serif; overflow:hidden; }
+    button,input,select,textarea { font:inherit; }
+
+    /* Layout */
+    .app { display:grid; grid-template-columns:248px minmax(620px,1fr) 320px; min-height:100vh; }
+    .sidebar { background:#0b1118; border-right:1px solid var(--line); padding:20px 18px;
+      display:flex; flex-direction:column; gap:18px; overflow-y:auto; }
+    .brand { display:flex; flex-direction:column; gap:4px; padding:4px 2px 14px;
+      border-bottom:1px solid var(--line-soft); }
+    .brand strong { color:var(--blue); font-size:1.28rem; }
+    .brand span { color:var(--muted); font-size:0.82rem; }
+    .nav { display:grid; gap:6px; }
+    .nav button { width:100%; border:0; color:var(--muted); background:transparent;
+      text-align:left; padding:11px 12px; border-radius:var(--radius); cursor:pointer; }
+    .nav button.active,.nav button:hover { color:var(--text); background:var(--panel-2); }
+    .side-title { color:var(--muted); font-size:0.76rem; text-transform:uppercase; }
+    .leave-board { display:grid; gap:10px; }
+    .leave-item { border:1px solid var(--line-soft); background:rgba(255,255,255,0.035);
+      border-radius:var(--radius); padding:11px; display:grid; gap:6px; }
+    .leave-item strong { font-size:0.95rem; }
+    .leave-item span { color:var(--muted); font-size:0.78rem; line-height:1.45; }
+    .status-dot { display:inline-flex; align-items:center; gap:6px; }
+    .status-dot::before { content:""; width:8px; height:8px; border-radius:999px; background:var(--amber); }
+
+    /* Main */
+    .main { display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+    .topbar { min-height:78px; border-bottom:1px solid var(--line); display:flex;
+      justify-content:space-between; gap:20px; align-items:center; padding:14px 24px;
+      background:rgba(16,21,29,0.96); flex-shrink:0; }
+    .page-title { display:grid; gap:4px; }
+    .page-title h1 { margin:0; font-size:1.25rem; }
+    .page-title p { margin:0; color:var(--muted); font-size:0.86rem; }
+    .date-nav { display:flex; align-items:center; gap:8px; }
+    .date-nav button { border:1px solid var(--line); background:var(--panel);
+      color:var(--text); padding:6px 10px; border-radius:var(--radius); cursor:pointer; }
+    .date-nav input[type=date] { border:1px solid var(--line); background:var(--panel);
+      color:var(--text); padding:6px 10px; border-radius:var(--radius); }
+    .kpis { display:grid; grid-template-columns:repeat(4,minmax(86px,1fr)); gap:10px; min-width:340px; }
+    .kpi { background:rgba(255,255,255,0.045); border:1px solid var(--line-soft);
+      border-radius:var(--radius); padding:9px 10px; }
+    .kpi strong { display:block; font-size:1.14rem; line-height:1.1; }
+    .kpi span { color:var(--muted); font-size:0.72rem; }
+
+    /* Toolbar */
+    .toolbar { display:flex; gap:10px; align-items:center; padding:14px 24px;
+      border-bottom:1px solid var(--line-soft); background:#111922; flex-shrink:0; flex-wrap:wrap; }
+    .segmented { display:inline-flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+    .segmented button { border:0; color:var(--muted); background:transparent; padding:8px 13px; cursor:pointer; }
+    .segmented button.active { background:var(--panel-2); color:var(--text); }
+    .field { border:1px solid var(--line); border-radius:var(--radius); background:var(--panel);
+      color:var(--text); padding:8px 10px; min-height:38px; }
+    .search { min-width:160px; }
+    .primary { border:0; border-radius:var(--radius); background:var(--blue);
+      color:#06111a; padding:9px 13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .secondary { border:1px solid var(--line); border-radius:var(--radius);
+      background:var(--panel); color:var(--text); padding:8px 12px; cursor:pointer; }
+    .btn-export { border:1px solid var(--green); border-radius:var(--radius);
+      background:rgba(79,209,161,0.12); color:var(--green); padding:8px 12px; cursor:pointer; white-space:nowrap; }
+    .btn-danger { border:1px solid rgba(255,107,107,0.5); border-radius:var(--radius);
+      background:rgba(255,107,107,0.08); color:#ffd4d4; padding:8px 12px; cursor:pointer; }
+
+    /* Schedule page */
+    .page-content { flex:1; min-height:0; overflow:auto; }
+    .schedule { padding:20px 24px 32px; min-height:100%; }
+    .time-header { display:grid; grid-template-columns:92px repeat(10,minmax(72px,1fr));
+      color:var(--muted); font-size:0.74rem; margin-bottom:8px; min-width:900px; }
+    .time-header span { padding-left:8px; border-left:1px solid transparent; }
+    .lab-row { display:grid; grid-template-columns:92px minmax(808px,1fr);
+      min-width:900px; margin-bottom:14px; align-items:stretch; }
+    .lab-label { display:flex; flex-direction:column; justify-content:center; gap:5px;
+      color:var(--text); font-weight:800; font-size:0.92rem; }
+    .lab-label small { color:var(--muted); font-weight:500; font-size:0.72rem; }
+    .axis { position:relative; height:104px; border:1px solid var(--line-soft);
+      border-radius:var(--radius);
+      background:linear-gradient(to right,rgba(255,255,255,0.1) 1px,transparent 1px),rgba(255,255,255,0.035);
+      background-size:10% 100%; overflow:hidden; }
+    .slot { position:absolute; top:14px; height:76px; min-width:60px; border-radius:7px;
+      padding:9px 10px; color:#06111a; box-shadow:var(--shadow); display:grid;
+      align-content:center; gap:4px; cursor:pointer; border:1px solid rgba(255,255,255,0.28); }
+    .slot.selected { outline:3px solid #fff; z-index:12; }
+    .slot.filtered { opacity:0.18; pointer-events:none; }
+    .slot strong { font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .slot span { font-size:0.73rem; color:rgba(6,17,26,0.78); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .routine { background:var(--cyan); }
+    .assigned { background:var(--violet); }
+    .released { background:var(--amber); outline:2px dashed rgba(255,255,255,0.72); animation:pulse 2.2s infinite; }
+    .urgent { background:var(--red); color:#fff; }
+    .urgent span { color:rgba(255,255,255,0.82); }
+    .hold { background:var(--green); }
+    @keyframes pulse {
+      0% { box-shadow:0 0 0 0 rgba(255,209,102,0.48); }
+      70% { box-shadow:0 0 0 9px rgba(255,209,102,0); }
+      100% { box-shadow:0 0 0 0 rgba(255,209,102,0); }
+    }
+    .empty-note { position:absolute; inset:0; display:grid; place-items:center;
+      color:rgba(154,168,182,0.56); font-size:0.82rem; pointer-events:none; }
+
+    /* Week view */
+    .week-grid { padding:20px 24px; min-width:900px; }
+    .week-head { display:grid; grid-template-columns:92px repeat(6,1fr); gap:6px;
+      margin-bottom:8px; color:var(--muted); font-size:0.78rem; }
+    .week-head span { text-align:center; padding:6px 4px;
+      border-radius:var(--radius); background:rgba(255,255,255,0.04); }
+    .week-head span.today { background:rgba(77,179,255,0.18); color:var(--blue); }
+    .week-row { display:grid; grid-template-columns:92px repeat(6,1fr); gap:6px; margin-bottom:8px; }
+    .week-cell { background:rgba(255,255,255,0.03); border:1px solid var(--line-soft);
+      border-radius:var(--radius); min-height:80px; padding:6px; display:flex;
+      flex-direction:column; gap:4px; }
+    .week-chip { border-radius:6px; padding:4px 6px; font-size:0.7rem; cursor:pointer;
+      color:#06111a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .week-chip.released { outline:1px dashed rgba(255,255,255,0.5); animation:none; }
+    .week-chip.urgent { color:#fff; }
+    .week-add { color:var(--muted); font-size:0.72rem; text-align:center; padding:4px;
+      border:1px dashed var(--line); border-radius:6px; cursor:pointer; }
+    .week-add:hover { color:var(--text); border-color:var(--blue); }
+
+    /* Leave page */
+    .leave-page { padding:24px; max-width:1000px; display:grid; gap:20px; }
+    .leave-page h2 { margin:0 0 12px; font-size:1.1rem; }
+    .leave-table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:0.84rem; }
+    th { background:var(--panel-2); color:var(--muted); padding:10px 12px;
+      text-align:left; border-bottom:1px solid var(--line); font-weight:600; }
+    td { padding:10px 12px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+    tr:hover td { background:rgba(255,255,255,0.03); }
+    .badge { display:inline-block; border-radius:999px; padding:3px 8px;
+      font-size:0.7rem; font-weight:600; }
+    .badge-released { background:rgba(255,209,102,0.2); color:var(--amber); }
+    .badge-hold { background:rgba(79,209,161,0.2); color:var(--green); }
+    .badge-urgent { background:rgba(255,107,107,0.2); color:var(--red); }
+    .badge-routine { background:rgba(94,211,214,0.2); color:var(--cyan); }
+    .badge-pending { background:rgba(154,168,182,0.2); color:var(--muted); }
+
+    /* Stats page */
+    .stats-page { padding:24px; display:grid; gap:24px; max-width:1000px; }
+    .stats-page h2 { margin:0 0 12px; font-size:1.1rem; }
+    .stat-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+    .stat-card { background:var(--panel-2); border:1px solid var(--line-soft);
+      border-radius:var(--radius); padding:16px; }
+    .stat-card strong { display:block; font-size:1.8rem; line-height:1; margin-bottom:4px; }
+    .stat-card span { color:var(--muted); font-size:0.78rem; }
+    .bar-chart { display:grid; gap:10px; }
+    .bar-row { display:grid; grid-template-columns:80px 1fr 50px; align-items:center; gap:10px; font-size:0.82rem; }
+    .bar-track { background:rgba(255,255,255,0.06); border-radius:999px; height:10px; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:999px; background:var(--blue); transition:width 0.4s; }
+    .export-area { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+    /* Right panel */
+    .right-panel { background:#111922; border-left:1px solid var(--line); padding:18px;
+      overflow:auto; display:grid; align-content:start; gap:18px; }
+    .panel-block { display:grid; gap:10px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .panel-head h2 { margin:0; font-size:0.96rem; }
+    .tag { border-radius:999px; padding:4px 8px; font-size:0.7rem;
+      background:rgba(255,255,255,0.08); color:var(--muted); }
+    .case { border:1px solid var(--line-soft); border-radius:var(--radius);
+      background:rgba(255,255,255,0.04); padding:12px; display:grid; gap:8px; }
+    .case strong { font-size:0.94rem; }
+    .case-meta { display:flex; flex-wrap:wrap; gap:6px; }
+    .case-meta span { background:rgba(255,255,255,0.07); color:var(--muted);
+      border-radius:999px; padding:4px 7px; font-size:0.7rem; }
+    .case button { justify-self:start; border:1px solid var(--line); background:var(--panel-2);
+      color:var(--text); border-radius:7px; padding:7px 10px; cursor:pointer; }
+    .case.selected { border-color:var(--blue); background:rgba(77,179,255,0.12); }
+    .case.assigned { opacity:0.6; }
+    .detail-card { border:1px solid var(--line-soft); border-radius:var(--radius);
+      background:rgba(255,255,255,0.04); padding:12px; display:grid; gap:8px;
+      color:var(--muted); font-size:0.82rem; line-height:1.45; }
+    .detail-card strong { color:var(--text); font-size:0.95rem; }
+    .detail-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:2px; }
+    .detail-actions button { border:1px solid var(--line); background:var(--panel-2);
+      color:var(--text); border-radius:7px; padding:7px 9px; cursor:pointer; font-size:0.78rem; }
+    .detail-actions button.danger { border-color:rgba(255,107,107,0.55); color:#ffd4d4; }
+    .empty-state { border:1px dashed var(--line); border-radius:var(--radius);
+      color:var(--muted); padding:14px; font-size:0.82rem; line-height:1.5; }
+    .audit { display:grid; gap:9px; color:var(--muted); font-size:0.8rem; line-height:1.5; }
+    .audit b { color:var(--text); }
+
+    /* Modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.58);
+      display:none; z-index:50; }
+    .modal-backdrop.open { display:block; }
+    /* modal is always fixed so it can be dragged freely */
+    .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+      width:min(540px,100%); border:1px solid var(--line); border-radius:var(--radius);
+      background:var(--panel); box-shadow:var(--shadow); padding:22px; display:grid;
+      gap:16px; z-index:51; max-height:90vh; overflow-y:auto; }
+    .modal h2 { margin:0; font-size:1.05rem; cursor:move; user-select:none;
+      padding-bottom:8px; border-bottom:1px solid var(--line-soft);
+      display:flex; align-items:center; gap:8px; }
+    .modal h2::before { content:"⠿"; font-size:0.9rem; color:var(--muted); letter-spacing:2px; }
+    .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .form-grid label { display:grid; gap:6px; color:var(--muted); font-size:0.78rem; }
+    .form-grid .wide { grid-column:1/-1; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+    .modal-actions .primary { margin-left:0; }
+
+    /* Toast */
+    .toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(16px);
+      opacity:0; pointer-events:none; background:#f8fafc; color:#07111c; border-radius:var(--radius);
+      padding:10px 16px; font-weight:700; box-shadow:var(--shadow); transition:opacity 0.2s,transform 0.2s;
+      z-index:60; max-width:min(520px,calc(100vw - 32px)); text-align:center; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* Responsive */
+    @media (max-width:1200px) {
+      body { overflow:auto; }
+      .app { grid-template-columns:220px minmax(0,1fr); }
+      .right-panel { grid-column:1/-1; border-left:0; border-top:1px solid var(--line);
+        grid-template-columns:repeat(2,minmax(260px,1fr)); }
+    }
+    @media (max-width:760px) {
+      .app { display:block; }
+      .topbar,.toolbar { align-items:stretch; flex-direction:column; }
+      .kpis { min-width:0; grid-template-columns:repeat(2,1fr); }
+      .right-panel { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <strong>Cath-Flow</strong>
+      <span>導管室排程工作台</span>
+    </div>
+    <nav class="nav" id="mainNav">
+      <button type="button" data-page="schedule" class="active">📅 今日排程總覽</button>
+      <button type="button" data-page="leave">🏥 請假與時段釋出</button>
+      <button type="button" data-page="cases">📋 待排病例池</button>
+      <button type="button" data-page="stats">📊 統計報表與匯出</button>
+    </nav>
+    <section class="leave-board" id="leaveBoard">
+      <div class="side-title">今日請假</div>
+    </section>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="page-title">
+        <h1 id="pageHeadTitle">今日導管室排程</h1>
+        <p id="dateLine"></p>
+      </div>
+      <div class="date-nav" id="dateNav">
+        <button type="button" id="prevDay">‹</button>
+        <input type="date" id="datePicker" class="field">
+        <button type="button" id="nextDay">›</button>
+      </div>
+      <section class="kpis" id="kpiBoard"></section>
+    </header>
+
+    <!-- TOOLBAR (schedule page) -->
+    <div class="toolbar" id="scheduleToolbar">
+      <div class="segmented" role="group">
+        <button type="button" data-view="day" class="active">日</button>
+        <button type="button" data-view="week">週</button>
+        <button type="button" data-view="released">釋出</button>
+      </div>
+      <select class="field" id="labFilter">
+        <option value="all">全部導管室</option>
+        <option value="LAB 01">LAB 01</option>
+        <option value="LAB 02">LAB 02</option>
+        <option value="LAB 03">LAB 03</option>
+        <option value="LAB 04">LAB 04</option>
+      </select>
+      <select class="field" id="statusFilter">
+        <option value="all">全部狀態</option>
+        <option value="routine">已排定</option>
+        <option value="released">已釋出</option>
+        <option value="urgent">急件保留</option>
+        <option value="hold">候補已媒合</option>
+      </select>
+      <input class="field search" type="search" id="searchInput" placeholder="搜尋醫師或術式">
+      <button class="secondary" type="button" id="openSlotModal">+ 新增排程</button>
+      <button class="primary" type="button" id="openLeaveModal">請假釋出</button>
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-content" id="pageContent"></div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel" id="rightPanel">
+    <section class="panel-block" id="casePanel"></section>
+    <section class="panel-block" id="detailPanel"></section>
+    <section class="panel-block">
+      <div class="panel-head"><h2>操作紀錄</h2><span class="tag" id="auditDateTag">今日</span></div>
+      <div class="audit" id="auditLog"></div>
+    </section>
+  </aside>
+</div>
+
+<!-- MODAL: 請假釋出 -->
+<div class="modal-backdrop" id="leaveModal">
+  <form class="modal" id="leaveForm">
+    <h2>新增請假 / 釋出時段</h2>
+    <div class="form-grid">
+      <label>請假日期<input class="field" name="date" type="date" required></label>
+      <label>請假醫師
+        <select class="field" name="doctor" id="leaveDoctor"></select>
+      </label>
+      <label>導管室
+        <select class="field" name="lab">
+          <option>LAB 01</option><option>LAB 02</option>
+          <option>LAB 03</option><option>LAB 04</option>
+        </select>
+      </label>
+      <label>請假原因
+        <select class="field" name="reason">
+          <option value="門診支援">門診支援</option>
+          <option value="個人假">個人假</option>
+          <option value="學術出差">學術出差</option>
+          <option value="病假">病假</option>
+          <option value="其他">其他</option>
+        </select>
+      </label>
+      <label>釋出開始<input class="field" name="start" type="time" value="08:00" min="07:00" max="18:00" required></label>
+      <label>釋出結束<input class="field" name="end" type="time" value="12:00" min="07:00" max="18:00" required></label>
+      <label class="wide">備註<input class="field" name="note" placeholder="可填寫代班安排或其他說明"></label>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" type="button" data-close="leaveModal">取消</button>
+      <button class="primary" type="submit">建立釋出時段</button>
+    </div>
+  </form>
+</div>
+
+<!-- MODAL: 新增排程 -->
+<div class="modal-backdrop" id="slotModal">
+  <form class="modal" id="slotForm">
+    <h2>新增導管室排程</h2>
+    <div class="form-grid">
+      <label>排程日期<input class="field" name="date" type="date" required></label>
+      <label>導管室
+        <select class="field" name="lab">
+          <option>LAB 01</option><option>LAB 02</option>
+          <option>LAB 03</option><option>LAB 04</option>
+        </select>
+      </label>
+      <label>執行醫師
+        <select class="field" name="doctor" id="slotDoctor"></select>
+      </label>
+      <label>術式類型
+        <select class="field" name="procedure" id="slotProcedure"></select>
+      </label>
+      <label>開始時間<input class="field" name="start" type="time" value="08:00" min="07:00" max="18:00" required></label>
+      <label>結束時間<input class="field" name="end" type="time" value="10:00" min="07:00" max="18:00" required></label>
+      <label class="wide">備註<input class="field" name="note" placeholder="選填"></label>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" type="button" data-close="slotModal">取消</button>
+      <button class="primary" type="submit">新增排程</button>
+    </div>
+  </form>
+</div>
+
+<!-- MODAL: 確認刪除 -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h2 id="confirmTitle">確認操作</h2>
+    <p id="confirmMsg" style="color:var(--muted);margin:0;font-size:0.9rem;"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" data-close="confirmModal">取消</button>
+      <button class="btn-danger" type="button" id="confirmOk">確認</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'cathflow_v2';
+const DOCTORS = ["王醫師","陳醫師","林醫師","黃醫師","張醫師","吳醫師","李醫師","蔡醫師","劉醫師","周醫師","鄭醫師","許醫師"];
+const PROCEDURES = ["CAG","PCI","CTO","EP","結構心","TAVI","IABP","洗腎通路","STEMI急件","其他"];
+const LABS = [
+  { id:"LAB 01", note:"技術員 A 組" },
+  { id:"LAB 02", note:"技術員 B 組" },
+  { id:"LAB 03", note:"影像導引優先" },
+  { id:"LAB 04", note:"麻醉支援可用" }
+];
+const TODAY = "2026-05-09";
+const STATUS_LABELS = { routine:"已排定", assigned:"已排定", released:"已釋出", urgent:"急件保留", hold:"候補已媒合" };
+const STATUS_BADGE = { routine:"badge-routine", released:"badge-released", urgent:"badge-urgent", hold:"badge-hold", assigned:"badge-routine" };
+const WEEK_DAYS = ["日","一","二","三","四","五","六"];
+
+// ── Default data ──────────────────────────────────────────────────────────────
+const DEFAULT_SLOTS = [
+  { id:"s1", date:"2026-05-09", lab:"LAB 01", status:"routine", doctor:"王醫師", procedure:"PCI", start:"08:00", end:"10:00" },
+  { id:"s2", date:"2026-05-09", lab:"LAB 01", status:"released", doctor:"陳醫師", procedure:"CAG", start:"10:30", end:"13:00", note:"門診支援，原時段可釋出", releasedBy:"陳醫師" },
+  { id:"s3", date:"2026-05-09", lab:"LAB 01", status:"assigned", doctor:"林醫師", procedure:"CAG", start:"14:00", end:"16:00" },
+  { id:"s4", date:"2026-05-09", lab:"LAB 02", status:"routine", doctor:"黃醫師", procedure:"結構心", start:"08:30", end:"11:30" },
+  { id:"s5", date:"2026-05-09", lab:"LAB 02", status:"urgent", doctor:"值班團隊", procedure:"STEMI急件", start:"12:00", end:"13:30" },
+  { id:"s6", date:"2026-05-09", lab:"LAB 02", status:"routine", doctor:"張醫師", procedure:"PCI", start:"14:30", end:"17:00" },
+  { id:"s7", date:"2026-05-09", lab:"LAB 03", status:"assigned", doctor:"林醫師", procedure:"CTO", start:"08:00", end:"10:00" },
+  { id:"s8", date:"2026-05-09", lab:"LAB 03", status:"hold", doctor:"候補團隊", procedure:"洗腎通路", start:"11:30", end:"13:15", assignedCaseId:"c1", assignedCaseTitle:"候補 A：穩定型心絞痛" },
+  { id:"s9", date:"2026-05-09", lab:"LAB 04", status:"routine", doctor:"吳醫師", procedure:"CAG", start:"08:00", end:"10:00" },
+  { id:"s10", date:"2026-05-09", lab:"LAB 04", status:"released", doctor:"李醫師", procedure:"EP", start:"10:30", end:"13:00", note:"學術出差", releasedBy:"李醫師" },
+  { id:"s11", date:"2026-05-09", lab:"LAB 04", status:"routine", doctor:"蔡醫師", procedure:"EP", start:"13:45", end:"16:00" },
+  { id:"s12", date:"2026-05-07", lab:"LAB 01", status:"routine", doctor:"王醫師", procedure:"PCI", start:"08:00", end:"10:30" },
+  { id:"s13", date:"2026-05-07", lab:"LAB 02", status:"released", doctor:"張醫師", procedure:"CAG", start:"09:00", end:"11:00", note:"病假", releasedBy:"張醫師" },
+  { id:"s14", date:"2026-05-08", lab:"LAB 01", status:"routine", doctor:"陳醫師", procedure:"CAG", start:"08:00", end:"10:00" },
+  { id:"s15", date:"2026-05-08", lab:"LAB 03", status:"routine", doctor:"黃醫師", procedure:"結構心", start:"10:00", end:"13:00" },
+];
+const DEFAULT_CASES = [
+  { id:"c1", title:"候補 A：穩定型心絞痛", minutes:90, procedure:"CAG", need:"可任一 LAB", status:"assigned", assignedLab:"LAB 03", assignedStart:"11:30", assignedSlotId:"s8" },
+  { id:"c2", title:"候補 B：PCI 術後追蹤", minutes:120, procedure:"PCI", need:"需主治確認", status:"waiting" },
+  { id:"c3", title:"急件候位：NSTEMI", minutes:150, procedure:"PCI", need:"麻醉可支援", status:"waiting" }
+];
+const DEFAULT_LOGS = [
+  { time:"09:10", text:"陳醫師請假核准，LAB 01 釋出 2.5 小時。", date:TODAY },
+  { time:"09:18", text:"李醫師請假核准，LAB 04 釋出 2.5 小時。", date:TODAY },
+  { time:"09:23", text:"系統建議 3 件候補病例可回填。", date:TODAY }
+];
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let app = {
+  page: "schedule",
+  currentDate: TODAY,
+  view: "day",
+  selectedSlotId: "s2",
+  selectedCaseId: null,
+  filters: { lab:"all", status:"all", search:"" },
+  slots: [], cases: [], logs: []
+};
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ slots:app.slots, cases:app.cases, logs:app.logs })); }
+  catch(e) {}
+}
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      app.slots = d.slots || DEFAULT_SLOTS;
+      app.cases = d.cases || DEFAULT_CASES;
+      app.logs  = d.logs  || DEFAULT_LOGS;
+    } else {
+      app.slots = DEFAULT_SLOTS.map(s => ({...s}));
+      app.cases = DEFAULT_CASES.map(c => ({...c}));
+      app.logs  = DEFAULT_LOGS.map(l => ({...l}));
+    }
+  } catch(e) {
+    app.slots = DEFAULT_SLOTS.map(s => ({...s}));
+    app.cases = DEFAULT_CASES.map(c => ({...c}));
+    app.logs  = DEFAULT_LOGS.map(l => ({...l}));
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const qs = sel => document.querySelector(sel);
+function toMin(t) { const [h,m] = t.split(":").map(Number); return h*60+m; }
+function durH(s) { return (toMin(s.end)-toMin(s.start))/60; }
+function timeToLeft(t) { return Math.max(0, ((toMin(t)-480)/600)*100); }
+function timeToWidth(s,e) { return Math.min(100-timeToLeft(s), ((toMin(e)-toMin(s))/600)*100); }
+function esc(v) {
+  return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;");
+}
+function nowLabel() { return new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit",hour12:false}); }
+function addLog(text) {
+  app.logs.unshift({ time:nowLabel(), text, date:app.currentDate });
+  saveToStorage();
+}
+function showToast(text) {
+  const t = qs("#toast");
+  t.textContent = text; t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), 2400);
+}
+function uid() { return "s"+Date.now()+Math.random().toString(36).slice(2,6); }
+function minToTime(m) {
+  return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+}
+function overlaps(as, ae, bs, be) { return as < be && bs < ae; }
+
+// Returns true if [start,end] overlaps any non-released slot in the same lab+date
+function hasOverlapWithNonReleased(date, lab, start, end, excludeId) {
+  const ns=toMin(start), ne=toMin(end);
+  return app.slots.some(s =>
+    s.date===date && s.lab===lab && s.id!==excludeId &&
+    s.status!=="released" &&
+    overlaps(ns, ne, toMin(s.start), toMin(s.end))
+  );
+}
+
+// Trim or remove released slots that overlap with a newly added [newStart,newEnd] block
+function adjustReleasedSlots(date, lab, newStart, newEnd) {
+  const ns=toMin(newStart), ne=toMin(newEnd);
+  // snapshot to avoid mutating while iterating
+  const targets = app.slots.filter(s => s.date===date && s.lab===lab && s.status==="released");
+  for (const rel of targets) {
+    const rs=toMin(rel.start), re=toMin(rel.end);
+    if (!overlaps(ns, ne, rs, re)) continue;
+    if (ns<=rs && ne>=re) {
+      // new slot covers entire released slot → remove
+      app.slots = app.slots.filter(s => s.id!==rel.id);
+    } else if (ns<=rs) {
+      // new slot eats into the start → push start forward
+      rel.start = minToTime(ne);
+    } else if (ne>=re) {
+      // new slot eats into the end → pull end backward
+      rel.end = minToTime(ns);
+    } else {
+      // new slot is inside released slot → split into left + right fragments
+      const origEnd = rel.end;
+      rel.end = minToTime(ns);
+      app.slots.push({ ...rel, id:uid(), start:minToTime(ne), end:origEnd });
+    }
+  }
+}
+
+// date utils
+function formatDateLabel(d) {
+  const dt = new Date(d+"T00:00:00");
+  const wd = WEEK_DAYS[dt.getDay()];
+  return `${d.replace(/-/g,"/")}（週${wd}）`;
+}
+function isoToDisplay(d) { return d.replace(/-/g,"/"); }
+function addDays(dateStr, n) {
+  const d = new Date(dateStr+"T00:00:00");
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function getWeekDates(dateStr) {
+  const d = new Date(dateStr+"T00:00:00");
+  const dow = d.getDay();
+  const mon = new Date(d); mon.setDate(d.getDate() - (dow===0?6:dow-1));
+  return Array.from({length:6}, (_,i) => {
+    const x = new Date(mon); x.setDate(mon.getDate()+i);
+    return x.toISOString().slice(0,10);
+  });
+}
+
+// ── Populate selects ──────────────────────────────────────────────────────────
+function populateSelects() {
+  ["leaveDoctor","slotDoctor"].forEach(id => {
+    const el = qs("#"+id);
+    el.innerHTML = DOCTORS.map(d=>`<option>${esc(d)}</option>`).join("");
+  });
+  qs("#slotProcedure").innerHTML = PROCEDURES.map(p=>`<option>${esc(p)}</option>`).join("");
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal(id) {
+  const el = qs("#"+id);
+  const modal = el.querySelector(".modal");
+  if (modal) { modal.style.left="50%"; modal.style.top="50%"; modal.style.transform="translate(-50%,-50%)"; }
+  el.classList.add("open"); el.setAttribute("aria-hidden","false");
+}
+function closeModal(id) {
+  const el = qs("#"+id); el.classList.remove("open"); el.setAttribute("aria-hidden","true");
+}
+let confirmCallback = null;
+function confirm(title, msg, cb) {
+  qs("#confirmTitle").textContent = title;
+  qs("#confirmMsg").textContent = msg;
+  confirmCallback = cb;
+  openModal("confirmModal");
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderKpis() {
+  const todaySlots = app.slots.filter(s => s.date === app.currentDate);
+  const released = todaySlots.filter(s => s.status==="released");
+  const relH = released.reduce((sum,s) => sum+durH(s), 0);
+  const waiting = app.cases.filter(c => c.status==="waiting").length;
+  const doctorSet = new Set(todaySlots.map(s => s.doctor).filter(d => d!=="候補團隊"&&d!=="值班團隊"));
+  qs("#kpiBoard").innerHTML = `
+    <div class="kpi"><strong>${doctorSet.size}</strong><span>今日醫師</span></div>
+    <div class="kpi"><strong>4</strong><span>導管室</span></div>
+    <div class="kpi"><strong style="color:var(--amber)">${relH.toFixed(1)}h</strong><span>釋出時段</span></div>
+    <div class="kpi"><strong style="color:var(--green)">${waiting}</strong><span>待排病例</span></div>`;
+}
+
+function renderLeaveBoard() {
+  const released = app.slots.filter(s => s.date===app.currentDate && s.status==="released");
+  qs("#leaveBoard").innerHTML = `<div class="side-title">今日請假</div>` +
+    (released.length ? released.map(s => `
+      <div class="leave-item">
+        <strong class="status-dot">${esc(s.releasedBy||s.doctor)}</strong>
+        <span>${esc(s.lab)} ${esc(s.start)}–${esc(s.end)}<br>${esc(s.note||"已釋出，可安排候補。")}</span>
+      </div>`).join("") :
+    `<div class="empty-state" style="font-size:0.78rem">今日無請假釋出記錄。</div>`);
+}
+
+// ── Schedule page ─────────────────────────────────────────────────────────────
+function slotMatches(s) {
+  const kw = app.filters.search.trim().toLowerCase();
+  const labOk = app.filters.lab==="all" || s.lab===app.filters.lab;
+  const stOk = app.filters.status==="all" || s.status===app.filters.status ||
+    (app.filters.status==="routine" && s.status==="assigned");
+  const viewOk = app.view!=="released" || s.status==="released";
+  const text = `${s.lab} ${s.doctor} ${s.procedure} ${s.assignedCaseTitle||""}`.toLowerCase();
+  return labOk && stOk && viewOk && (!kw || text.includes(kw));
+}
+
+function renderSlot(s) {
+  const sel = s.id===app.selectedSlotId ? " selected":"";
+  const filt = slotMatches(s) ? "":" filtered";
+  const left = timeToLeft(s.start), width = timeToWidth(s.start, s.end);
+  const label = s.assignedCaseTitle || (s.status==="released" ? "可釋出回填" : s.doctor);
+  return `<button class="slot ${s.status}${sel}${filt}" type="button"
+    style="left:${left}%;width:${Math.max(width,8)}%"
+    data-slot-id="${esc(s.id)}" title="${esc(STATUS_LABELS[s.status])}">
+    <strong>${esc(label)}</strong>
+    <span>${esc(s.start)}–${esc(s.end)} ${esc(s.procedure)}</span>
+  </button>`;
+}
+
+function renderDayView() {
+  const visLabs = LABS.filter(l => app.filters.lab==="all" || l.id===app.filters.lab);
+  const daySlots = app.slots.filter(s => s.date===app.currentDate);
+  return `<div class="schedule">
+    <div class="time-header">
+      <span></span>
+      ${["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"]
+        .map(t=>`<span>${t}</span>`).join("")}
+    </div>
+    ${visLabs.map(lab => {
+      const labSlots = daySlots.filter(s => s.lab===lab.id);
+      const vis = labSlots.filter(slotMatches).length;
+      return `<div class="lab-row">
+        <div class="lab-label">${lab.id}<small>${lab.note}</small></div>
+        <div class="axis">
+          ${!vis ? `<div class="empty-note">無符合時段</div>` : ""}
+          ${labSlots.map(renderSlot).join("")}
+        </div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderWeekView() {
+  const dates = getWeekDates(app.currentDate);
+  const dayNames = ["週一","週二","週三","週四","週五","週六"];
+  return `<div class="week-grid">
+    <div class="week-head">
+      <span></span>
+      ${dates.map((d,i) => {
+        const isTod = d===TODAY;
+        return `<span class="${isTod?"today":""}">${dayNames[i]}<br><small>${isoToDisplay(d)}</small></span>`;
+      }).join("")}
+    </div>
+    ${LABS.filter(l => app.filters.lab==="all"||l.id===l.id).map(lab => `
+      <div class="week-row">
+        <div class="lab-label" style="font-size:0.8rem">${lab.id}<small>${lab.note}</small></div>
+        ${dates.map(d => {
+          const chips = app.slots.filter(s => s.lab===lab.id && s.date===d);
+          return `<div class="week-cell" data-wlab="${esc(lab.id)}" data-wdate="${esc(d)}">
+            ${chips.map(s => `<div class="week-chip ${s.status}" data-slot-id="${esc(s.id)}"
+              title="${esc(s.doctor)} ${esc(s.start)}–${esc(s.end)} ${esc(s.procedure)}">
+              ${esc(s.status==="released"?"↑"+s.doctor:s.doctor)} ${esc(s.start)}
+            </div>`).join("")}
+            <div class="week-add" data-add-wlab="${esc(lab.id)}" data-add-wdate="${esc(d)}">+</div>
+          </div>`;
+        }).join("")}
+      </div>`).join("")}
+  </div>`;
+}
+
+function renderSchedulePage() {
+  qs("#pageContent").innerHTML = app.view==="week" ? renderWeekView() : renderDayView();
+}
+
+// ── Cases & detail panels ─────────────────────────────────────────────────────
+function renderCases() {
+  const waiting = app.cases.filter(c => c.status==="waiting");
+  const sel = app.slots.find(s => s.id===app.selectedSlotId);
+  qs("#casePanel").innerHTML = `
+    <div class="panel-head"><h2>待排病例池</h2><span class="tag">${waiting.length} 件可回填</span></div>
+    ${app.cases.map(c => {
+      const isAss = c.status==="assigned";
+      const isSel = c.id===app.selectedCaseId ? " selected":"";
+      const btnText = isAss
+        ? `已安排 ${c.assignedLab||""} ${c.assignedStart||""}`
+        : (sel?.status==="released" ? `安排至 ${sel.lab} ${sel.start}` : "選取病例");
+      return `<article class="case${isSel}${isAss?" assigned":""}" data-case-id="${c.id}">
+        <strong>${esc(c.title)}</strong>
+        <div class="case-meta">
+          <span>預估 ${c.minutes} 分</span>
+          <span>${esc(c.procedure)}</span>
+          <span>${esc(c.need)}</span>
+        </div>
+        <button type="button" data-case-action="${c.id}" ${isAss?"disabled":""}>${esc(btnText)}</button>
+      </article>`;
+    }).join("")}`;
+}
+
+function renderDetails() {
+  const s = app.slots.find(s => s.id===app.selectedSlotId);
+  qs("#detailPanel").innerHTML = `
+    <div class="panel-head"><h2>時段詳情</h2>
+      <span class="tag">${s ? STATUS_LABELS[s.status] : "未選取"}</span></div>
+    ${s ? `<div class="detail-card">
+      <strong>${esc(s.lab)} ${esc(s.date)} ${esc(s.start)}–${esc(s.end)}</strong>
+      <div>醫師：${esc(s.releasedBy||s.doctor)}</div>
+      <div>術式：${esc(s.assignedCaseTitle||s.procedure)}</div>
+      <div>狀態：${esc(STATUS_LABELS[s.status])}</div>
+      ${s.note?`<div>備註：${esc(s.note)}</div>`:""}
+      <div class="detail-actions">
+        ${s.status==="released"?`<button type="button" id="reserveBtn">暫保留急件</button>`:""}
+        ${s.status==="hold"&&s.assignedCaseId?`<button type="button" class="danger" id="unassignBtn">取消回填</button>`:""}
+        <button type="button" class="danger" data-delete-slot="${esc(s.id)}">刪除時段</button>
+      </div>
+    </div>` : `<div class="empty-state">點選時間軸上的時段查看詳情。</div>`}`;
+}
+
+function renderAudit() {
+  qs("#auditLog").innerHTML = app.logs.slice(0,10)
+    .map(l=>`<div><b>${esc(l.time)}</b> ${esc(l.text)}</div>`).join("") || `<div style="color:var(--muted)">暫無記錄。</div>`;
+}
+
+// ── Leave management page ─────────────────────────────────────────────────────
+function renderLeavePage() {
+  const leaves = app.slots.filter(s => s.status==="released" || s.releasedBy);
+  leaves.sort((a,b) => (b.date+b.start).localeCompare(a.date+a.start));
+  qs("#scheduleToolbar").style.display = "none";
+  qs("#pageContent").innerHTML = `<div class="leave-page">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0">請假與時段釋出記錄</h2>
+        <button class="primary" type="button" id="openLeaveModal2">+ 新增請假</button>
+      </div>
+      <div class="leave-table-wrap">
+        <table>
+          <thead><tr>
+            <th>日期</th><th>醫師</th><th>導管室</th><th>時段</th>
+            <th>術式</th><th>狀態</th><th>備註</th><th>操作</th>
+          </tr></thead>
+          <tbody>${leaves.length ? leaves.map(s => `<tr>
+            <td>${esc(s.date)}</td>
+            <td>${esc(s.releasedBy||s.doctor)}</td>
+            <td>${esc(s.lab)}</td>
+            <td>${esc(s.start)}–${esc(s.end)}</td>
+            <td>${esc(s.procedure)}</td>
+            <td><span class="badge ${STATUS_BADGE[s.status]}">${esc(STATUS_LABELS[s.status])}</span></td>
+            <td>${esc(s.note||"")}</td>
+            <td><button class="btn-danger" style="padding:4px 8px;font-size:0.75rem" data-delete-slot="${esc(s.id)}">刪除</button></td>
+          </tr>`).join("") : `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">目前沒有請假釋出記錄。</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+  qs("#openLeaveModal2")?.addEventListener("click", () => {
+    qs("[name=date]", qs("#leaveModal")).value = app.currentDate;
+    openModal("leaveModal");
+  });
+}
+
+// ── Stats page ────────────────────────────────────────────────────────────────
+function renderStatsPage() {
+  qs("#scheduleToolbar").style.display = "none";
+  const all = app.slots;
+  const relH = all.filter(s=>s.status==="released").reduce((sum,s)=>sum+durH(s),0);
+  const holdH = all.filter(s=>s.status==="hold").reduce((sum,s)=>sum+durH(s),0);
+  const routineH = all.filter(s=>s.status==="routine"||s.status==="assigned").reduce((sum,s)=>sum+durH(s),0);
+  const totalCases = app.cases.length;
+  const assigned = app.cases.filter(c=>c.status==="assigned").length;
+  const labStats = LABS.map(l => {
+    const ls = all.filter(s=>s.lab===l.id);
+    const h = ls.reduce((sum,s)=>sum+durH(s),0);
+    return { id:l.id, h };
+  });
+  const maxH = Math.max(...labStats.map(l=>l.h), 1);
+  qs("#pageContent").innerHTML = `<div class="stats-page">
+    <div>
+      <h2>總覽統計</h2>
+      <div class="stat-cards">
+        <div class="stat-card"><strong style="color:var(--amber)">${relH.toFixed(1)}h</strong><span>累計釋出時段</span></div>
+        <div class="stat-card"><strong style="color:var(--green)">${holdH.toFixed(1)}h</strong><span>候補回填時段</span></div>
+        <div class="stat-card"><strong style="color:var(--cyan)">${routineH.toFixed(1)}h</strong><span>已排定時段</span></div>
+        <div class="stat-card"><strong>${assigned}/${totalCases}</strong><span>病例回填率</span></div>
+      </div>
+    </div>
+    <div>
+      <h2>各導管室使用量</h2>
+      <div class="bar-chart">
+        ${labStats.map(l=>`<div class="bar-row">
+          <span>${esc(l.id)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(l.h/maxH*100).toFixed(1)}%"></div></div>
+          <span>${l.h.toFixed(1)}h</span>
+        </div>`).join("")}
+      </div>
+    </div>
+    <div>
+      <h2>匯出資料</h2>
+      <div class="export-area">
+        <button class="btn-export" type="button" id="exportCsvAll">↓ 匯出全部時段 CSV</button>
+        <button class="btn-export" type="button" id="exportCsvToday">↓ 匯出今日時段 CSV</button>
+        <button class="btn-export" type="button" id="exportCsvReleased">↓ 匯出釋出記錄 CSV</button>
+        <button class="btn-export" type="button" id="exportPrint">🖨 列印報表</button>
+      </div>
+    </div>
+    <div>
+      <h2>全部時段明細</h2>
+      <div class="leave-table-wrap">
+        <table>
+          <thead><tr><th>日期</th><th>導管室</th><th>醫師</th><th>術式</th><th>開始</th><th>結束</th><th>時數</th><th>狀態</th><th>備註</th></tr></thead>
+          <tbody>${app.slots.sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(s=>`
+            <tr>
+              <td>${esc(s.date)}</td><td>${esc(s.lab)}</td>
+              <td>${esc(s.releasedBy||s.doctor)}</td><td>${esc(s.procedure)}</td>
+              <td>${esc(s.start)}</td><td>${esc(s.end)}</td>
+              <td>${durH(s).toFixed(1)}h</td>
+              <td><span class="badge ${STATUS_BADGE[s.status]}">${esc(STATUS_LABELS[s.status])}</span></td>
+              <td>${esc(s.note||"")}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+  qs("#exportCsvAll").addEventListener("click", () => exportCSV(app.slots, "cathflow_all.csv"));
+  qs("#exportCsvToday").addEventListener("click", () => exportCSV(app.slots.filter(s=>s.date===app.currentDate), "cathflow_today.csv"));
+  qs("#exportCsvReleased").addEventListener("click", () => exportCSV(app.slots.filter(s=>s.status==="released"||s.releasedBy), "cathflow_released.csv"));
+  qs("#exportPrint").addEventListener("click", () => window.print());
+}
+
+// ── Cases page ────────────────────────────────────────────────────────────────
+function renderCasesPage() {
+  qs("#scheduleToolbar").style.display = "none";
+  qs("#pageContent").innerHTML = `<div class="leave-page">
+    <h2>待排病例池</h2>
+    <div class="leave-table-wrap">
+      <table>
+        <thead><tr><th>病例</th><th>術式</th><th>需求</th><th>預估時間</th><th>狀態</th><th>安排至</th></tr></thead>
+        <tbody>${app.cases.map(c=>`<tr>
+          <td>${esc(c.title)}</td><td>${esc(c.procedure)}</td>
+          <td>${esc(c.need)}</td><td>${c.minutes} 分</td>
+          <td><span class="badge ${c.status==="assigned"?"badge-hold":"badge-pending"}">${c.status==="assigned"?"已回填":"待排"}</span></td>
+          <td>${c.status==="assigned"?`${esc(c.assignedLab||"")} ${esc(c.assignedStart||"")}`:"—"}</td>
+        </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+function exportCSV(rows, filename) {
+  const header = ["日期","導管室","醫師","術式","開始","結束","時數(h)","狀態","備註"];
+  const lines = [header.join(","), ...rows.map(s => [
+    s.date, s.lab, s.releasedBy||s.doctor, s.procedure,
+    s.start, s.end, durH(s).toFixed(2),
+    STATUS_LABELS[s.status]||s.status, s.note||""
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(","))];
+  const blob = new Blob(["﻿"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download=filename;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`已匯出 ${rows.length} 筆資料 → ${filename}`);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function assignCase(caseId) {
+  const slot = app.slots.find(s => s.id===app.selectedSlotId);
+  const item = app.cases.find(c => c.id===caseId);
+  if (!item || item.status==="assigned") return;
+  if (!slot || slot.status!=="released") {
+    app.selectedCaseId = caseId; render();
+    showToast("請先點選一個黃色釋出時段，再安排病例。"); return;
+  }
+  slot.status="hold"; slot.assignedCaseId=item.id;
+  slot.assignedCaseTitle=item.title; slot.procedure=item.procedure;
+  if (!slot.releasedBy) slot.releasedBy=slot.doctor;
+  slot.doctor="候補團隊";
+  item.status="assigned"; item.assignedLab=slot.lab;
+  item.assignedStart=slot.start; item.assignedSlotId=slot.id;
+  app.selectedCaseId=null;
+  addLog(`${item.title} 已回填至 ${slot.lab} ${slot.start}–${slot.end}。`);
+  render(); showToast("已完成回填，排程已更新。");
+}
+
+function unassignSelected() {
+  const slot = app.slots.find(s => s.id===app.selectedSlotId);
+  if (!slot || slot.status!=="hold" || !slot.assignedCaseId) return;
+  const item = app.cases.find(c => c.id===slot.assignedCaseId);
+  if (item) { item.status="waiting"; delete item.assignedLab; delete item.assignedStart; delete item.assignedSlotId; }
+  const title = slot.assignedCaseTitle;
+  slot.status="released"; slot.doctor=slot.releasedBy||slot.doctor;
+  slot.procedure=slot.releasedBy?`${slot.doctor}請假`:slot.procedure;
+  delete slot.assignedCaseId; delete slot.assignedCaseTitle;
+  addLog(`${title} 已從 ${slot.lab} ${slot.start}–${slot.end} 取消回填，時段恢復釋出。`);
+  render(); showToast("已取消回填，病例回到待排池。");
+}
+
+function reserveSelected() {
+  const slot = app.slots.find(s => s.id===app.selectedSlotId);
+  if (!slot || slot.status!=="released") return;
+  slot.status="urgent"; slot.title="急件保留"; slot.procedure="待急件指派";
+  addLog(`${slot.lab} ${slot.start}–${slot.end} 已暫保留給急件。`);
+  render(); showToast("已暫保留給急件。");
+}
+
+function deleteSlot(slotId) {
+  const s = app.slots.find(s=>s.id===slotId);
+  if (!s) return;
+  if (s.assignedCaseId) {
+    const c = app.cases.find(c=>c.id===s.assignedCaseId);
+    if (c) { c.status="waiting"; delete c.assignedLab; delete c.assignedStart; delete c.assignedSlotId; }
+  }
+  app.slots = app.slots.filter(s=>s.id!==slotId);
+  if (app.selectedSlotId===slotId) app.selectedSlotId=null;
+  addLog(`已刪除 ${s.lab} ${s.date} ${s.start}–${s.end} (${s.doctor}) 時段。`);
+  render(); showToast("時段已刪除。");
+}
+
+function createReleasedSlot(form) {
+  const data = new FormData(form);
+  const doctor=data.get("doctor"), lab=data.get("lab");
+  const date=data.get("date"), start=data.get("start"), end=data.get("end");
+  const note=data.get("note")||"";
+  const reason=data.get("reason")||"請假";
+  if (toMin(end)<=toMin(start)) { showToast("結束時間需晚於開始時間。"); return; }
+  app.slots.push({ id:uid(), date, lab, status:"released", doctor, procedure:"CAG",
+    start, end, note:`${reason}：${note}`.trim().replace(/：$/,""), releasedBy:doctor });
+  addLog(`${doctor} ${reason}，${lab} ${date} ${start}–${end} 已釋出。`);
+  closeModal("leaveModal"); form.reset();
+  app.currentDate = date;
+  qs("#datePicker").value = date;
+  render(); showToast("請假釋出時段已建立。");
+}
+
+function createSlot(form) {
+  const data = new FormData(form);
+  const date=data.get("date"), lab=data.get("lab"), doctor=data.get("doctor");
+  const procedure=data.get("procedure"), start=data.get("start"), end=data.get("end");
+  const note=data.get("note")||"";
+  if (toMin(end)<=toMin(start)) { showToast("結束時間需晚於開始時間。"); return; }
+  if (hasOverlapWithNonReleased(date, lab, start, end, null)) {
+    showToast("時段已重疊，請重新調整"); return;
+  }
+  const id = uid();
+  app.slots.push({ id, date, lab, status:"routine", doctor, procedure, start, end, note });
+  adjustReleasedSlots(date, lab, start, end);
+  app.selectedSlotId = id;
+  addLog(`新增排程：${doctor} ${lab} ${date} ${start}–${end} ${procedure}。`);
+  closeModal("slotModal"); form.reset();
+  app.currentDate = date;
+  qs("#datePicker").value = date;
+  render(); showToast("排程已新增。");
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render() {
+  qs("#datePicker").value = app.currentDate;
+  qs("#dateLine").textContent = formatDateLabel(app.currentDate) + "，4 間導管室";
+  qs("#scheduleToolbar").style.display = "";
+  renderKpis();
+  renderLeaveBoard();
+  renderAudit();
+  if (app.page==="schedule") {
+    qs("#pageHeadTitle").textContent = "今日導管室排程";
+    qs("#scheduleToolbar").style.display = "";
+    qs("#rightPanel").style.display = "";
+    renderSchedulePage();
+    renderCases();
+    renderDetails();
+  } else if (app.page==="leave") {
+    qs("#pageHeadTitle").textContent = "請假與時段釋出";
+    qs("#rightPanel").style.display = "none";
+    renderLeavePage();
+  } else if (app.page==="stats") {
+    qs("#pageHeadTitle").textContent = "統計報表與匯出";
+    qs("#rightPanel").style.display = "none";
+    renderStatsPage();
+  } else if (app.page==="cases") {
+    qs("#pageHeadTitle").textContent = "待排病例池";
+    qs("#rightPanel").style.display = "none";
+    renderCasesPage();
+  }
+  saveToStorage();
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+qs("#datePicker").addEventListener("change", e => {
+  app.currentDate = e.target.value; render();
+});
+qs("#prevDay").addEventListener("click", () => {
+  app.currentDate = addDays(app.currentDate, -1); render();
+});
+qs("#nextDay").addEventListener("click", () => {
+  app.currentDate = addDays(app.currentDate, 1); render();
+});
+
+qs("#mainNav").addEventListener("click", e => {
+  const btn = e.target.closest("[data-page]");
+  if (!btn) return;
+  app.page = btn.dataset.page;
+  document.querySelectorAll("#mainNav [data-page]").forEach(b => b.classList.toggle("active", b===btn));
+  render();
+});
+
+document.querySelectorAll(".segmented [data-view]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    app.view = btn.dataset.view;
+    document.querySelectorAll(".segmented [data-view]").forEach(b => b.classList.toggle("active", b===btn));
+    renderSchedulePage();
+  });
+});
+
+qs("#labFilter").addEventListener("change", e => { app.filters.lab=e.target.value; renderSchedulePage(); });
+qs("#statusFilter").addEventListener("change", e => { app.filters.status=e.target.value; renderSchedulePage(); });
+qs("#searchInput").addEventListener("input", e => { app.filters.search=e.target.value; renderSchedulePage(); });
+
+qs("#openLeaveModal").addEventListener("click", () => {
+  qs("[name=date]", qs("#leaveModal")).value = app.currentDate;
+  openModal("leaveModal");
+});
+qs("#openSlotModal").addEventListener("click", () => {
+  qs("[name=date]", qs("#slotModal")).value = app.currentDate;
+  openModal("slotModal");
+});
+
+qs("#leaveForm").addEventListener("submit", e => { e.preventDefault(); createReleasedSlot(e.currentTarget); });
+qs("#slotForm").addEventListener("submit", e => { e.preventDefault(); createSlot(e.currentTarget); });
+
+qs("#confirmOk").addEventListener("click", () => {
+  closeModal("confirmModal"); if (confirmCallback) { confirmCallback(); confirmCallback=null; }
+});
+
+document.addEventListener("click", e => {
+  // close modal on backdrop click
+  if (e.target.classList.contains("modal-backdrop")) closeModal(e.target.id);
+
+  // close buttons
+  const closeBtn = e.target.closest("[data-close]");
+  if (closeBtn) { closeModal(closeBtn.dataset.close); return; }
+
+  // slot selection (day view)
+  const slotBtn = e.target.closest("[data-slot-id]");
+  if (slotBtn && !e.target.closest("[data-delete-slot]")) {
+    app.selectedSlotId = slotBtn.dataset.slotId;
+    if (app.page==="schedule") { renderDetails(); renderCases(); }
+    document.querySelectorAll(".slot.selected").forEach(el => el.classList.remove("selected"));
+    slotBtn.classList.add("selected");
+    return;
+  }
+
+  // delete slot
+  const delBtn = e.target.closest("[data-delete-slot]");
+  if (delBtn) {
+    const id = delBtn.dataset.deleteSlot;
+    const s = app.slots.find(s=>s.id===id);
+    confirm("刪除時段", `確定要刪除 ${s?.lab||""} ${s?.start||""}–${s?.end||""} (${s?.doctor||""}) 這個時段嗎？`, () => deleteSlot(id));
+    return;
+  }
+
+  // case action
+  const caseActionBtn = e.target.closest("[data-case-action]");
+  if (caseActionBtn) { assignCase(caseActionBtn.dataset.caseAction); return; }
+
+  // case card select
+  const caseCard = e.target.closest("[data-case-id]");
+  if (caseCard) { app.selectedCaseId = caseCard.dataset.caseId; renderCases(); return; }
+
+  // reserve / unassign (detail panel dynamic buttons)
+  if (e.target.id==="reserveBtn") reserveSelected();
+  if (e.target.id==="unassignBtn") unassignSelected();
+
+  // week view add
+  const addCell = e.target.closest("[data-add-wlab]");
+  if (addCell) {
+    qs("[name=lab]", qs("#slotModal")).value = addCell.dataset.addWlab;
+    qs("[name=date]", qs("#slotModal")).value = addCell.dataset.addWdate;
+    openModal("slotModal"); return;
+  }
+});
+
+// ── Draggable modals ──────────────────────────────────────────────────────────
+function makeDraggable(modalId) {
+  const backdrop = document.getElementById(modalId);
+  if (!backdrop) return;
+  const modal = backdrop.querySelector(".modal");
+  const handle = modal.querySelector("h2");
+  let dragging = false, ox = 0, oy = 0;
+
+  handle.addEventListener("mousedown", e => {
+    dragging = true;
+    const r = modal.getBoundingClientRect();
+    // lock position in place before first drag (replaces the CSS transform centering)
+    modal.style.left = r.left + "px";
+    modal.style.top  = r.top  + "px";
+    modal.style.transform = "none";
+    ox = e.clientX - r.left;
+    oy = e.clientY - r.top;
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const mw = modal.offsetWidth, mh = modal.offsetHeight;
+    const nx = Math.max(0, Math.min(e.clientX - ox, window.innerWidth  - mw));
+    const ny = Math.max(0, Math.min(e.clientY - oy, window.innerHeight - mh));
+    modal.style.left = nx + "px";
+    modal.style.top  = ny + "px";
+  });
+
+  document.addEventListener("mouseup", () => { dragging = false; });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+populateSelects();
+loadFromStorage();
+render();
+["leaveModal","slotModal","confirmModal"].forEach(makeDraggable);
+</script>
+</body>
+</html>
