@@ -1,22 +1,29 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { CompletedExam, ExamPhoto, Patient } from '../types'
+import type { CompletedExam, ExamMedia, Patient } from '../types'
+import { examUploadService } from '../services/uploadService'
+import { getVideoMeta } from '../utils/videoMeta'
 
-// 目前這次檢查的狀態(選定的病人、已拍照片)與「已上傳」紀錄,
+// 目前這次檢查的狀態(選定的病人、已拍攝的照片與影片)與「已上傳」紀錄,
 // 全部存在瀏覽器記憶體中 —— 重新整理即消失。
 //
-// TODO(後端): 第五階段改為上傳到院內 Node.js 後端,
-// 影像依規定保存 7 年,並以病歷號連結供事後簽收。
+// TODO(後端): 第五階段改為上傳到院內 Node.js 後端(見 services/uploadService.ts
+// 的 ExamUploadService 介面與分段上傳 TODO),影像依規定保存 7 年。
 
 interface ExamContextValue {
   patient: Patient | null
   setPatient: (p: Patient | null) => void
-  photos: ExamPhoto[]
-  addPhoto: (blob: Blob, source: ExamPhoto['source']) => void
-  removePhoto: (id: string) => void
+  /** 本次檢查的媒體項目(照片+影片,依加入順序) */
+  media: ExamMedia[]
+  addPhoto: (blob: Blob, source: ExamMedia['source']) => void
+  /** 加入影片;會非同步擷取第一幀縮圖與長度。recordedDuration:錄影計時器量到的秒數(webm 中繼資料缺 duration 時的備援) */
+  addVideo: (blob: Blob, source: ExamMedia['source'], recordedDuration?: number) => Promise<void>
+  removeMedia: (id: string) => void
   updateNote: (id: string, note: string) => void
-  /** 模擬上傳:把目前的照片打包成一筆檢查紀錄,回傳紀錄 id */
+  /** 本次檢查所有媒體的總大小(bytes) */
+  totalBytes: number
+  /** 模擬上傳:把目前的媒體打包成一筆檢查紀錄,回傳紀錄 id */
   submitExam: () => Promise<string>
   completedExams: CompletedExam[]
   getExam: (id: string) => CompletedExam | undefined
@@ -32,47 +39,74 @@ function nextId(prefix: string): string {
 
 export function ExamProvider({ children }: { children: ReactNode }) {
   const [patient, setPatient] = useState<Patient | null>(null)
-  const [photos, setPhotos] = useState<ExamPhoto[]>([])
+  const [media, setMedia] = useState<ExamMedia[]>([])
   const [completedExams, setCompletedExams] = useState<CompletedExam[]>([])
 
-  const addPhoto = useCallback((blob: Blob, source: ExamPhoto['source']) => {
-    const photo: ExamPhoto = {
+  const addPhoto = useCallback((blob: Blob, source: ExamMedia['source']) => {
+    const item: ExamMedia = {
       id: nextId('photo'),
+      kind: 'photo',
       blob,
+      mimeType: blob.type || 'image/jpeg',
       url: URL.createObjectURL(blob),
       note: '',
       source,
       takenAt: new Date(),
     }
-    setPhotos((prev) => [...prev, photo])
+    setMedia((prev) => [...prev, item])
   }, [])
 
-  const removePhoto = useCallback((id: string) => {
-    setPhotos((prev) => {
-      const target = prev.find((p) => p.id === id)
-      if (target) URL.revokeObjectURL(target.url)
-      return prev.filter((p) => p.id !== id)
+  const addVideo = useCallback(
+    async (blob: Blob, source: ExamMedia['source'], recordedDuration?: number) => {
+      const url = URL.createObjectURL(blob)
+      const meta = await getVideoMeta(url)
+      const item: ExamMedia = {
+        id: nextId('video'),
+        kind: 'video',
+        blob,
+        mimeType: blob.type || 'video/mp4',
+        url,
+        note: '',
+        source,
+        takenAt: new Date(),
+        duration: meta.duration ?? recordedDuration,
+        thumbUrl: meta.thumbUrl ?? undefined,
+      }
+      setMedia((prev) => [...prev, item])
+    },
+    [],
+  )
+
+  const removeMedia = useCallback((id: string) => {
+    setMedia((prev) => {
+      const target = prev.find((m) => m.id === id)
+      if (target) {
+        URL.revokeObjectURL(target.url)
+        if (target.thumbUrl) URL.revokeObjectURL(target.thumbUrl)
+      }
+      return prev.filter((m) => m.id !== id)
     })
   }, [])
 
   const updateNote = useCallback((id: string, note: string) => {
-    setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, note } : p)))
+    setMedia((prev) => prev.map((m) => (m.id === id ? { ...m, note } : m)))
   }, [])
+
+  const totalBytes = useMemo(() => media.reduce((sum, m) => sum + m.blob.size, 0), [media])
 
   const submitExam = useCallback(async () => {
     if (!patient) throw new Error('尚未選擇病人')
-    // TODO(後端): 改為實際 POST 影像與註記到院內伺服器
-    await new Promise((resolve) => setTimeout(resolve, 800)) // 模擬上傳延遲
+    const { examId } = await examUploadService.uploadExam(patient, media)
     const exam: CompletedExam = {
-      id: nextId('exam'),
+      id: examId,
       patient,
-      photos,
+      media,
       uploadedAt: new Date(),
     }
     setCompletedExams((prev) => [exam, ...prev])
-    setPhotos([]) // 照片已歸入檢查紀錄,清空目前工作區(Object URL 留給紀錄頁使用)
+    setMedia([]) // 媒體已歸入檢查紀錄,清空目前工作區(Object URL 留給紀錄頁使用)
     return exam.id
-  }, [patient, photos])
+  }, [patient, media])
 
   const getExam = useCallback(
     (id: string) => completedExams.find((e) => e.id === id),
@@ -83,15 +117,28 @@ export function ExamProvider({ children }: { children: ReactNode }) {
     () => ({
       patient,
       setPatient,
-      photos,
+      media,
       addPhoto,
-      removePhoto,
+      addVideo,
+      removeMedia,
       updateNote,
+      totalBytes,
       submitExam,
       completedExams,
       getExam,
     }),
-    [patient, photos, addPhoto, removePhoto, updateNote, submitExam, completedExams, getExam],
+    [
+      patient,
+      media,
+      addPhoto,
+      addVideo,
+      removeMedia,
+      updateNote,
+      totalBytes,
+      submitExam,
+      completedExams,
+      getExam,
+    ],
   )
 
   return <ExamContext.Provider value={value}>{children}</ExamContext.Provider>
