@@ -25,3 +25,6 @@ dist-ssr
 
 # 開發用 HTTPS 憑證(mkcert 產生,不進版控)
 certs/
+
+# vite-plugin-pwa devOptions 產物
+dev-dist/
