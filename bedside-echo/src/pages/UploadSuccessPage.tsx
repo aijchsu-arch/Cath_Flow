@@ -1,5 +1,6 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useExam } from '../store/ExamContext'
+import { formatBytes } from '../utils/format'
 
 const timeFormat = new Intl.DateTimeFormat('zh-TW', {
   year: 'numeric',
@@ -18,6 +19,10 @@ export default function UploadSuccessPage() {
   const exam = examId ? getExam(examId) : undefined
 
   if (!exam) return <Navigate to="/" replace />
+
+  const photoCount = exam.media.filter((m) => m.kind === 'photo').length
+  const videoCount = exam.media.length - photoCount
+  const totalBytes = exam.media.reduce((sum, m) => sum + m.blob.size, 0)
 
   return (
     <div className="page page-center">
@@ -49,8 +54,16 @@ export default function UploadSuccessPage() {
             <dd>{timeFormat.format(exam.uploadedAt)}</dd>
           </div>
           <div>
-            <dt>照片數</dt>
-            <dd>{exam.photos.length} 張</dd>
+            <dt>照片</dt>
+            <dd>{photoCount} 張</dd>
+          </div>
+          <div>
+            <dt>影片</dt>
+            <dd>{videoCount} 段</dd>
+          </div>
+          <div>
+            <dt>總大小</dt>
+            <dd>{formatBytes(totalBytes)}</dd>
           </div>
         </dl>
       </div>
