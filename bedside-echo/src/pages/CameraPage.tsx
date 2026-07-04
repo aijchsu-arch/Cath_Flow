@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useExam } from '../store/ExamContext'
 import { useCameraStream, CAMERA_ERROR_GUIDE } from '../hooks/useCameraStream'
 import MediaList from '../components/MediaList'
+import ModeSwitch from '../components/ModeSwitch'
 
 export default function CameraPage() {
   const navigate = useNavigate()
@@ -64,6 +65,8 @@ export default function CameraPage() {
           {patient.name}|{patient.chartNo}|{patient.bed}
         </div>
       </header>
+
+      <ModeSwitch mode="camera" />
 
       <div className="viewfinder">
         {/* playsInline:iOS 必須,否則影片會全螢幕播放 */}
