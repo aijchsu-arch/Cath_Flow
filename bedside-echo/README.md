@@ -89,16 +89,33 @@ mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem \
 **讓 Android 信任 mkcert 根憑證(選用):**
 把 `rootCA.pem` 傳到手機 → 設定 → 安全性 → 加密與憑證 → 安裝憑證 → CA 憑證。
 
-## 目前功能(第一階段)
+## 目前功能(第一、二階段)
 
 - **PWA**:manifest(繁中)、Service Worker(自動更新)、App 圖示,
   iPhone/Android 可加入主畫面。
 - **首頁**:病歷號輸入(大字體、數字鍵盤、8 碼自動查詢)→ 顯示病人基本資料卡
   (目前為寫死的假資料,`TODO(FHIR)` 標注待接院內 FHIR R4 API);
-  「拍照/錄影/查詢報告」三大按鈕(錄影、查詢報告為佔位頁)。
-- **拍照**:後鏡頭即時取景拍照、相簿選取備援、多張縮圖列表、單張刪除、
-  每張一行註記、確認上傳(模擬,存於瀏覽器記憶體)、上傳成功摘要頁、
-  相機權限遭拒時的中文引導。
+  「拍照/錄影/查詢報告」三大按鈕(查詢報告為佔位頁)。
+- **拍照**:後鏡頭即時取景拍照、相簿選取備援、縮圖列表、單張刪除、
+  每張一行註記、相機權限遭拒時的中文引導。
+- **錄影**:MediaRecorder 後鏡頭無聲錄影(不錄音以減少容量,故只需相機權限)、
+  紅點+mm:ss 計時、單段上限 60 秒自動停止(`MAX_RECORDING_SECONDS` 可調)、
+  iOS Safari 錄出 mp4/H.264、Android Chrome 錄出 webm 皆可正確回放、
+  不支援 MediaRecorder 時自動改用「從相簿選取影片」(`capture` 會開內建相機)、
+  影片縮圖(第一幀)+長度+檔案大小、點縮圖全螢幕回放。
+- **檢查紀錄整合**:同一次檢查(同病歷號 session)的照片與影片合併為一筆紀錄,
+  總大小統計、超過 200MB 警告(`TOTAL_SIZE_WARN_BYTES` 可調);
+  確認上傳(模擬,存於瀏覽器記憶體)後,摘要頁顯示照片張數/影片段數/總大小。
+  真實上傳介面已定義於 `services/uploadService.ts`(`ExamUploadService`),
+  之後以分段上傳+續傳實作替換(見 `TODO(上傳)`)。
+
+### 手機實測注意(錄影)
+
+- **iPhone**:需 iOS **14.3 以上**的 Safari 才支援 MediaRecorder(錄出 mp4/H.264);
+  更舊版本會自動顯示「從相簿選取影片」備援。實測請確認手機未開低電量模式
+  (可能影響相機影格率)。
+- **Android**:Chrome 錄出 webm(VP8/VP9)。錄出的 webm 中繼資料沒有長度
+  (duration=Infinity),App 內已處理,回放與長度顯示皆正常。
 
 ## 檔案結構
 
@@ -113,21 +130,30 @@ bedside-echo/
     ├── main.tsx                # 進入點(Router + ExamProvider)
     ├── App.tsx                 # 路由表
     ├── index.css               # 手機優先樣式
-    ├── types.ts                # Patient / ExamPhoto / CompletedExam 型別
+    ├── constants.ts            # 錄影上限 60s、大小警告 200MB、位元率(可調)
+    ├── types.ts                # Patient / ExamMedia(photo|video)/ CompletedExam
     ├── data/mockPatients.ts    # 虛構病人資料 + 模擬 FHIR 查詢(TODO(FHIR))
-    ├── store/ExamContext.tsx   # 記憶體內狀態:病人、照片、已上傳紀錄
-    ├── components/PatientCard.tsx
+    ├── services/uploadService.ts # 上傳服務介面 ExamUploadService + 模擬實作
+    │                             #(TODO(上傳):分段上傳、續傳)
+    ├── store/ExamContext.tsx   # 記憶體內狀態:病人、媒體項目、已上傳紀錄
+    ├── hooks/useCameraStream.ts  # 共用相機取景 + 權限錯誤中文引導
+    ├── utils/format.ts         # 檔案大小 / mm:ss 格式化
+    ├── utils/videoMeta.ts      # 影片長度與第一幀縮圖(含 webm Infinity 處理)
+    ├── components/
+    │   ├── PatientCard.tsx
+    │   └── MediaList.tsx       # 照片+影片列表、註記、刪除、回放、大小警告
     └── pages/
         ├── HomePage.tsx        # 病歷號查詢 + 三大按鈕
-        ├── CameraPage.tsx      # 取景拍照/相簿選取/註記/模擬上傳
+        ├── CameraPage.tsx      # 取景拍照/相簿選取
+        ├── VideoPage.tsx       # MediaRecorder 錄影/相簿選取影片
         ├── UploadSuccessPage.tsx
-        └── PlaceholderPage.tsx # 錄影、查詢報告佔位
+        └── PlaceholderPage.tsx # 查詢報告佔位
 ```
 
 ## 開發階段規劃
 
-1. ✅ 拍照上傳介面(本階段)
-2. 錄影上傳
+1. ✅ 拍照上傳介面
+2. ✅ 錄影上傳(本階段)
 3. 常用片語面板
 4. 語音轉文字
 5. 後端與 FHIR 介接
