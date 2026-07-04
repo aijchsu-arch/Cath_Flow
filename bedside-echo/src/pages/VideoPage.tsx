@@ -5,6 +5,7 @@ import { useCameraStream, CAMERA_ERROR_GUIDE } from '../hooks/useCameraStream'
 import { MAX_RECORDING_SECONDS, VIDEO_BITS_PER_SECOND } from '../constants'
 import { formatDuration } from '../utils/format'
 import MediaList from '../components/MediaList'
+import ModeSwitch from '../components/ModeSwitch'
 
 // MediaRecorder 輸出格式依平台而異:
 // - iOS Safari(14.3+)只支援 video/mp4(H.264)
@@ -130,6 +131,8 @@ export default function VideoPage() {
           {patient.name}|{patient.chartNo}|{patient.bed}
         </div>
       </header>
+
+      <ModeSwitch mode="video" disabled={recording} />
 
       {RECORDER_SUPPORTED ? (
         <div className="viewfinder">

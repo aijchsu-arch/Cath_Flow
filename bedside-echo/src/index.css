@@ -400,6 +400,37 @@ button {
   color: var(--color-primary);
 }
 
+/* 拍照/錄影模式切換列 */
+
+.mode-switch {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-card);
+}
+
+.mode-switch-btn {
+  flex: 1;
+  min-height: 52px;
+  font-size: 18px;
+  font-weight: 800;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+}
+
+.mode-switch-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.mode-switch-btn:disabled:not(.active) {
+  opacity: 0.4;
+}
+
 /* ---------- 錄影 ---------- */
 
 .rec-indicator {
