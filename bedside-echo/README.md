@@ -89,7 +89,7 @@ mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem \
 **讓 Android 信任 mkcert 根憑證(選用):**
 把 `rootCA.pem` 傳到手機 → 設定 → 安全性 → 加密與憑證 → 安裝憑證 → CA 憑證。
 
-## 目前功能(第一、二階段)
+## 目前功能(第一~三階段)
 
 - **PWA**:manifest(繁中)、Service Worker(自動更新)、App 圖示,
   iPhone/Android 可加入主畫面。
@@ -108,6 +108,16 @@ mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem \
   確認上傳(模擬,存於瀏覽器記憶體)後,摘要頁顯示照片張數/影片段數/總大小。
   真實上傳介面已定義於 `services/uploadService.ts`(`ExamUploadService`),
   之後以分段上傳+續傳實作替換(見 `TODO(上傳)`)。
+- **常用片語與報告**:內建片語庫(LV function/瓣膜/心包膜,分類中英並列、
+  片語英文,見 `data/phraseLibrary.ts`);個人自訂片語可新增/編輯/刪除、
+  選擇歸屬分類,存 localStorage 依模擬使用者 ID(`TODO(帳號)` 之後綁
+  HIS 帳號存後端跨裝置同步);片語兩個入口 —— 每個媒體項目的「片語」鈕
+  (附加後報告標注 [Image 1]/[Video 2],與縮圖上的編號一致)、
+  報告頁的水平滑動分類選單(點選加入、再點取消);報告自動彙整
+  (依分類列出 Findings),內文可完整編輯,編輯後點片語改為插入
+  游標位置或文末、取消片語從內文移除該句,絕不覆蓋已編輯內容;
+  「重新產生」可放棄手動編輯重新彙整;報告與媒體同筆紀錄一起上傳,
+  成功頁顯示報告全文預覽。
 
 ### 手機實測注意(錄影)
 
@@ -131,21 +141,26 @@ bedside-echo/
     ├── App.tsx                 # 路由表
     ├── index.css               # 手機優先樣式
     ├── constants.ts            # 錄影上限 60s、大小警告 200MB、位元率(可調)
-    ├── types.ts                # Patient / ExamMedia(photo|video)/ CompletedExam
+    ├── types.ts                # Patient / ExamMedia / PhraseRef / CompletedExam
     ├── data/mockPatients.ts    # 虛構病人資料 + 模擬 FHIR 查詢(TODO(FHIR))
+    ├── data/phraseLibrary.ts   # 內建片語庫(分類中英並列,之後增修改此檔)
     ├── services/uploadService.ts # 上傳服務介面 ExamUploadService + 模擬實作
     │                             #(TODO(上傳):分段上傳、續傳)
-    ├── store/ExamContext.tsx   # 記憶體內狀態:病人、媒體項目、已上傳紀錄
+    ├── store/ExamContext.tsx   # 記憶體內狀態:病人、媒體、報告草稿、已上傳紀錄
+    ├── store/PhraseContext.tsx # 個人自訂片語 CRUD + localStorage(TODO(帳號))
     ├── hooks/useCameraStream.ts  # 共用相機取景 + 權限錯誤中文引導
     ├── utils/format.ts         # 檔案大小 / mm:ss 格式化
     ├── utils/videoMeta.ts      # 影片長度與第一幀縮圖(含 webm Infinity 處理)
+    ├── utils/report.ts         # 媒體編號(Image/Video N)與報告自動彙整
     ├── components/
     │   ├── PatientCard.tsx
-    │   └── MediaList.tsx       # 照片+影片列表、註記、刪除、回放、大小警告
+    │   ├── MediaList.tsx       # 媒體列表、註記、片語附加、刪除、回放、大小警告
+    │   └── PhrasePicker.tsx    # 片語面板:分類水平滑動 + chips + 自訂片語管理
     └── pages/
         ├── HomePage.tsx        # 病歷號查詢 + 三大按鈕
         ├── CameraPage.tsx      # 取景拍照/相簿選取
         ├── VideoPage.tsx       # MediaRecorder 錄影/相簿選取影片
+        ├── ReportPage.tsx      # 片語選單 + 報告編輯 + 確認上傳
         ├── UploadSuccessPage.tsx
         └── PlaceholderPage.tsx # 查詢報告佔位
 ```
@@ -153,8 +168,8 @@ bedside-echo/
 ## 開發階段規劃
 
 1. ✅ 拍照上傳介面
-2. ✅ 錄影上傳(本階段)
-3. 常用片語面板
+2. ✅ 錄影上傳
+3. ✅ 常用片語面板與報告生成(本階段)
 4. 語音轉文字
 5. 後端與 FHIR 介接
 6. 簽收流程
