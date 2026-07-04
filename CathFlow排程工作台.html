@@ -665,7 +665,7 @@ function renderWeekView() {
         return `<span class="${isTod?"today":""}">${dayNames[i]}<br><small>${isoToDisplay(d)}</small></span>`;
       }).join("")}
     </div>
-    ${LABS.filter(l => app.filters.lab==="all"||l.id===l.id).map(lab => `
+    ${LABS.filter(l => app.filters.lab==="all"||l.id===app.filters.lab).map(lab => `
       <div class="week-row">
         <div class="lab-label" style="font-size:0.8rem">${lab.id}<small>${lab.note}</small></div>
         ${dates.map(d => {
