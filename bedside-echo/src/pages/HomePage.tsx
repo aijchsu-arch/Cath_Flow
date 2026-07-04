@@ -97,7 +97,12 @@ export default function HomePage() {
           </span>
           拍照
         </button>
-        <button type="button" className="btn-action" onClick={() => navigate('/video')}>
+        <button
+          type="button"
+          className="btn-action"
+          onClick={() => navigate('/video')}
+          disabled={!patient}
+        >
           <span className="btn-action-icon" aria-hidden>
             🎬
           </span>
@@ -109,7 +114,7 @@ export default function HomePage() {
           </span>
           查詢報告
         </button>
-        {!patient && <p className="action-note">請先輸入病歷號帶出病人資料,再開始拍照</p>}
+        {!patient && <p className="action-note">請先輸入病歷號帶出病人資料,再開始拍照或錄影</p>}
       </section>
     </div>
   )

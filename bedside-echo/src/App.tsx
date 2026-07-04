@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import CameraPage from './pages/CameraPage'
+import VideoPage from './pages/VideoPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import UploadSuccessPage from './pages/UploadSuccessPage'
 
@@ -9,7 +10,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/camera" element={<CameraPage />} />
-      <Route path="/video" element={<PlaceholderPage title="錄影" />} />
+      <Route path="/video" element={<VideoPage />} />
       <Route path="/reports" element={<PlaceholderPage title="查詢報告" />} />
       <Route path="/uploaded/:examId" element={<UploadSuccessPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
