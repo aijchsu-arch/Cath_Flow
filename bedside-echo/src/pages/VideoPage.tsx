@@ -28,7 +28,7 @@ const RECORDER_SUPPORTED = typeof MediaRecorder !== 'undefined' && !!pickMimeTyp
 
 export default function VideoPage() {
   const navigate = useNavigate()
-  const { patient, media, addVideo, submitExam } = useExam()
+  const { patient, media, addVideo } = useExam()
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { camera, startCamera, stopStream, streamRef } = useCameraStream(videoRef)
@@ -40,7 +40,6 @@ export default function VideoPage() {
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [hint, setHint] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
 
   const stopRecording = useCallback((reason?: string) => {
     const recorder = recorderRef.current
@@ -117,18 +116,6 @@ export default function VideoPage() {
       if (file.type.startsWith('video/')) void addVideo(file, 'album')
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  async function handleSubmit() {
-    if (media.length === 0 || uploading) return
-    setUploading(true)
-    try {
-      if (recording) stopRecording()
-      const examId = await submitExam()
-      navigate(`/uploaded/${examId}`, { replace: true })
-    } finally {
-      setUploading(false)
-    }
   }
 
   if (!patient) return null
@@ -242,16 +229,14 @@ export default function VideoPage() {
         <button
           type="button"
           className="btn-big btn-primary"
-          onClick={() => void handleSubmit()}
-          disabled={media.length === 0 || uploading || recording}
+          onClick={() => navigate('/report')}
+          disabled={media.length === 0 || recording}
         >
-          {uploading
-            ? '上傳中…'
-            : recording
-              ? '錄影中,請先停止'
-              : media.length > 0
-                ? `確認上傳(${media.length} 項)`
-                : '尚未錄製影片'}
+          {recording
+            ? '錄影中,請先停止'
+            : media.length > 0
+              ? `下一步:產生報告(${media.length} 項)`
+              : '尚未錄製影片'}
         </button>
       </div>
     </div>

@@ -68,6 +68,13 @@ export default function UploadSuccessPage() {
         </dl>
       </div>
 
+      {exam.report.trim() !== '' && (
+        <div className="summary-card report-preview-card">
+          <h2>報告全文</h2>
+          <pre className="report-preview">{exam.report}</pre>
+        </div>
+      )}
+
       <div className="success-actions">
         <button type="button" className="btn-big btn-primary" onClick={() => navigate('/camera')}>
           繼續拍攝

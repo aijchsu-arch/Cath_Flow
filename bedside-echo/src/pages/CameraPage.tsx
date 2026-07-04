@@ -6,12 +6,11 @@ import MediaList from '../components/MediaList'
 
 export default function CameraPage() {
   const navigate = useNavigate()
-  const { patient, media, addPhoto, submitExam } = useExam()
+  const { patient, media, addPhoto } = useExam()
   const videoRef = useRef<HTMLVideoElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { camera, startCamera, stopStream } = useCameraStream(videoRef)
   const [flash, setFlash] = useState(false)
-  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     // 未選病人不能拍照(檢查紀錄必須以病歷號連結)
@@ -51,17 +50,6 @@ export default function CameraPage() {
     }
     // 清空 input,讓同一張照片可重複選取
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  async function handleSubmit() {
-    if (media.length === 0 || uploading) return
-    setUploading(true)
-    try {
-      const examId = await submitExam()
-      navigate(`/uploaded/${examId}`, { replace: true })
-    } finally {
-      setUploading(false)
-    }
   }
 
   if (!patient) return null
@@ -132,10 +120,10 @@ export default function CameraPage() {
         <button
           type="button"
           className="btn-big btn-primary"
-          onClick={() => void handleSubmit()}
-          disabled={media.length === 0 || uploading}
+          onClick={() => navigate('/report')}
+          disabled={media.length === 0}
         >
-          {uploading ? '上傳中…' : media.length > 0 ? `確認上傳(${media.length} 項)` : '尚未拍攝照片'}
+          {media.length > 0 ? `下一步:產生報告(${media.length} 項)` : '尚未拍攝照片'}
         </button>
       </div>
     </div>
