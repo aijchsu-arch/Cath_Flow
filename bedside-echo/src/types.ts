@@ -11,6 +11,12 @@ export interface Patient {
 
 export type MediaKind = 'photo' | 'video'
 
+/** 一個被選用的片語:內容 + 所屬分類(報告依分類彙整用) */
+export interface PhraseRef {
+  text: string
+  categoryId: string
+}
+
 /** 單個檢查媒體項目:照片或影片,各自帶一行註記 */
 export interface ExamMedia {
   id: string
@@ -30,6 +36,8 @@ export interface ExamMedia {
   duration?: number
   /** 影片第一幀縮圖的 Object URL;照片直接用 url 當縮圖 */
   thumbUrl?: string
+  /** 附加在此媒體項目上的片語(報告中標注 [Image N] / [Video N]) */
+  phrases: PhraseRef[]
 }
 
 /** 一次已「上傳」(目前為模擬)的檢查紀錄 */
@@ -37,5 +45,7 @@ export interface CompletedExam {
   id: string
   patient: Patient
   media: ExamMedia[]
+  /** 文字報告全文(醫師可自由編輯後的最終內容) */
+  report: string
   uploadedAt: Date
 }

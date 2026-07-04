@@ -20,6 +20,8 @@ export interface ExamUploadService {
   uploadExam(
     patient: Patient,
     media: ExamMedia[],
+    /** 文字報告全文(與媒體同屬一筆檢查紀錄) */
+    report: string,
     onProgress?: (progress: UploadProgress) => void,
   ): Promise<{ examId: string }>
 }
@@ -28,7 +30,7 @@ let mockIdCounter = 0
 
 /** 模擬實作:不真的送出,只依總檔案大小模擬進度與延遲。 */
 export const mockUploadService: ExamUploadService = {
-  async uploadExam(_patient, media, onProgress) {
+  async uploadExam(_patient, media, _report, onProgress) {
     const total = media.reduce((sum, m) => sum + m.blob.size, 0)
     const steps = 5
     for (let i = 1; i <= steps; i++) {
