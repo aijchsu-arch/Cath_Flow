@@ -89,7 +89,7 @@ mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem \
 **讓 Android 信任 mkcert 根憑證(選用):**
 把 `rootCA.pem` 傳到手機 → 設定 → 安全性 → 加密與憑證 → 安裝憑證 → CA 憑證。
 
-## 目前功能(第一~三階段)
+## 目前功能(第一~四階段)
 
 - **PWA**:manifest(繁中)、Service Worker(自動更新)、App 圖示,
   iPhone/Android 可加入主畫面。
@@ -118,6 +118,13 @@ mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem \
   游標位置或文末、取消片語從內文移除該句,絕不覆蓋已編輯內容;
   「重新產生」可放棄手動編輯重新彙整;報告與媒體同筆紀錄一起上傳,
   成功頁顯示報告全文預覽。
+- **口述報告(語音轉文字)**:報告頁「🎤 口述加入報告」按鈕,
+  按下才要求麥克風權限、錄音中顯示紅點與秒數(上限 120 秒自動送出)、
+  停止後送自建 Whisper 辨識(OpenAI 相容 API,附心超詞彙提示),
+  辨識文字插入游標位置且視同手動編輯(不會被自動重產覆蓋);
+  服務斷線/逾時/權限遭拒都有中文引導。
+  **Whisper 架設與測試方式見 [`docs/whisper-setup.md`](docs/whisper-setup.md)**;
+  注意口述功能要用本機開發伺服器實測(Vercel 公網連不到區網的 Whisper)。
 
 ### 手機實測注意(錄影)
 
@@ -169,8 +176,8 @@ bedside-echo/
 
 1. ✅ 拍照上傳介面
 2. ✅ 錄影上傳
-3. ✅ 常用片語面板與報告生成(本階段)
-4. 語音轉文字
+3. ✅ 常用片語面板與報告生成
+4. ✅ 語音轉文字(口述報告,本階段)
 5. 後端與 FHIR 介接
 6. 簽收流程
 
