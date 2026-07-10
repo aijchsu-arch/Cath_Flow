@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import type { PhraseRef } from '../types'
 import { useExam } from '../store/ExamContext'
 import { generateReport, phraseKey } from '../utils/report'
-import { formatBytes } from '../utils/format'
+import { formatBytes, formatDuration } from '../utils/format'
 import PhrasePicker from '../components/PhrasePicker'
+import { useAudioRecorder, audioErrorMessage } from '../hooks/useAudioRecorder'
+import { sttService } from '../services/sttService'
+import { MAX_DICTATION_SECONDS } from '../constants'
 
 /**
  * 產生報告頁(上傳確認前的步驟):
@@ -33,6 +36,12 @@ export default function ReportPage() {
   const [uploading, setUploading] = useState(false)
   // 檢查時間:進入報告頁時定一次,重新產生時保持穩定
   const examTimeRef = useRef(new Date())
+  // 口述(語音轉文字)
+  const [transcribing, setTranscribing] = useState(false)
+  const [dictError, setDictError] = useState<string | null>(null)
+  const { recording, seconds, start, stop } = useAudioRecorder((blob) => {
+    void handleTranscribe(blob) // 達上限自動停止時也送辨識
+  })
 
   useEffect(() => {
     if (!patient) navigate('/', { replace: true })
@@ -101,6 +110,50 @@ export default function ReportPage() {
     if (ta) cursorRef.current = ta.selectionStart
   }
 
+  async function startDictation() {
+    setDictError(null)
+    try {
+      await start()
+    } catch (err) {
+      setDictError(audioErrorMessage(err))
+    }
+  }
+
+  async function stopDictation() {
+    const blob = await stop()
+    if (blob) await handleTranscribe(blob)
+  }
+
+  async function handleTranscribe(blob: Blob) {
+    setTranscribing(true)
+    setDictError(null)
+    try {
+      const text = await sttService.transcribe(blob)
+      if (!text) {
+        setDictError('沒有辨識到內容,請靠近手機再說一次')
+        return
+      }
+      insertDictation(text)
+    } catch (err) {
+      setDictError(err instanceof Error ? err.message : '語音辨識失敗,請再試一次')
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
+  /** 口述文字視同手動編輯:插入游標位置或文末,並轉為 dirty(之後不會被自動重產覆蓋) */
+  function insertDictation(text: string) {
+    const pos = cursorRef.current
+    if (pos !== null && pos >= 0 && pos <= reportText.length) {
+      setReportText(`${reportText.slice(0, pos)}${text}${reportText.slice(pos)}`)
+      cursorRef.current = pos + text.length
+    } else {
+      const sep = reportText.endsWith('\n') || reportText === '' ? '' : '\n'
+      setReportText(`${reportText}${sep}${text}\n`)
+    }
+    if (!reportDirty) setReportDirty(true)
+  }
+
   async function handleSubmit() {
     if (uploading) return
     setUploading(true)
@@ -129,6 +182,29 @@ export default function ReportPage() {
       </div>
 
       <PhrasePicker selectedKeys={selectedKeys} onToggle={handleToggle} />
+
+      <div className="dictation-bar">
+        {!recording ? (
+          <button
+            type="button"
+            className="btn-mic"
+            onClick={() => void startDictation()}
+            disabled={transcribing}
+          >
+            {transcribing ? '辨識中…' : '🎤 口述加入報告'}
+          </button>
+        ) : (
+          <button type="button" className="btn-mic recording" onClick={() => void stopDictation()}>
+            <span className="rec-dot" aria-hidden /> 停止口述(
+            {formatDuration(seconds)} / {formatDuration(MAX_DICTATION_SECONDS)})
+          </button>
+        )}
+      </div>
+      {dictError && (
+        <div className="dictation-error" role="alert">
+          {dictError}
+        </div>
+      )}
 
       <div className="report-editor-header">
         <label htmlFor="report-text">報告內文(可自由編輯)</label>

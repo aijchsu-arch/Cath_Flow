@@ -56,5 +56,17 @@ export default defineConfig({
     https: hasLocalCert
       ? { cert: fs.readFileSync(certFile), key: fs.readFileSync(keyFile) }
       : undefined,
+    // 口述報告(語音轉文字):手機上的 HTTPS 頁面不能直接呼叫
+    // http://<區網IP>:8000(mixed content),因此由開發伺服器代理轉發。
+    // Whisper 伺服器位置用環境變數覆寫,例如:
+    //   WHISPER_URL=http://192.168.1.30:8000 npm run dev
+    // 院內正式部署時,改由院內反向代理提供同一路徑(見 docs/whisper-setup.md)。
+    proxy: {
+      '/api/stt': {
+        target: process.env.WHISPER_URL ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/stt/, ''),
+      },
+    },
   },
 })
